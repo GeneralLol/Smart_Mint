@@ -16,7 +16,7 @@ long Timer::get_recorded_time(){
 }
 
 long Timer::refresh_recorded_time(){
-  this->recordedTime = this->currentTime;
+  this->recordedTime = millis();
   return this->currentTime;
 }
 

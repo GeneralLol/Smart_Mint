@@ -6,6 +6,7 @@
 
 #include "timer.h"
 #include "moisture.h"
+#include "notification.h"
 
 //The drier it is, the larger the number.
 #define MOISTURE_MIN 2047
@@ -15,11 +16,14 @@ const static int MOISTURE_SENSOR_PIN   = 35;     //Pin for the moisture sensor.
 const static double WATER_THREASHOLD   = 0.1;    //Threashold which the system notiifes to water.
 const static int DEBUG_SERIAL_INTERVAL = 500;    //intervals in miliseconds which the chip sends info to Serial.
 const static int ANALOG_RESOLUTION     = 11;
+const static int NOTIFICATION_INTERVAL = 3600000;//intervals in miliseconds for phone push notifications.
 
 
 //Global vars needed to get info around.
-static Timer* timer = new Timer();
+static Timer* debugTimer = new Timer();           //Used to time debug messages from Serial.
+static Timer* notificationTimer = new Timer();    //Used to buffer between dropping below threashold humidity and resetting the notification flag.
 static MoistureSensor* moistureSensor = new MoistureSensor (MOISTURE_SENSOR_PIN, ANALOG_RESOLUTION);
+static Notification* notification = new Notification("Water your mint!");
 
 void setup() {
   Serial.begin(9600);
@@ -34,7 +38,8 @@ void setup() {
   Serial.println("Starting Blynk. . .");
   Blynk.begin(auth, ssid, pass);
   Serial.println("Blynk started.");
-
+  
+  Blynk.notify("Smart Mint Online.");
 }
 
 void loop() {
@@ -44,19 +49,26 @@ void loop() {
 
   //Serial.println(timer.get_delta_time());
   //See timer.cpp for implementation of get_delta_time and refresh_recorded_time.
-  if (timer->get_delta_time() >= DEBUG_SERIAL_INTERVAL){
+  if (debugTimer->get_delta_time() >= DEBUG_SERIAL_INTERVAL){
     Serial.println (reading);
-    timer->refresh_recorded_time();
+    debugTimer->refresh_recorded_time();
+  }
+  //1. When water level is low, send notification, set LED on.
+  //2. After the notification is sent, do not send again until the plant is watered,
+  //  or for an extented period of time.
+  //3. When the plat is watered again(humidity higher than threashold), reset notification
+  //  and turn LED off.
+  int notificationDeltaT = notificationTimer->get_delta_time();
+  if (reading < WATER_THREASHOLD && !notification->flag
+      && notificationDeltaT > NOTIFICATION_INTERVAL){
+
+    digitalWrite (LED_BUILTIN, 1);
+    Blynk.notify(notification->message.c_str());
+    notification->flag = 1;
+    notificationTimer->refresh_recorded_time();
   }
 
-  if (reading < WATER_THREASHOLD){
-    digitalWrite (LED_BUILTIN, 1);
-  }else{
+  if (notification->flag && reading > WATER_THREASHOLD){
     digitalWrite (LED_BUILTIN, 0);
   }
-
-  //TODO: Implement push notification when mint needs watering.
-  //Notify only once when the plant needs watering, and refresh the variable
-  //next time when it is watered.
-
 }
