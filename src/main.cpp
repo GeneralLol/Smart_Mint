@@ -5,31 +5,26 @@
 #include <BlynkSimpleEsp32.h>
 
 #include "timer.h"
-#include "misc.h"
+#include "moisture.h"
 
 //The drier it is, the larger the number.
 #define MOISTURE_MIN 2047
 #define MOISTURE_MAX 1800
 
-#define MOISTURE_SENSOR 35            //Pin for the moisture sensor.
-#define WATER_THREASHOLD 0.3          //Threashold which the system notiifes to water.
-#define DEBUG_SERIAL_INTERVAL 500     //intervals in miliseconds which the chip sends info to Serial.
+const static int MOISTURE_SENSOR_PIN   = 35;     //Pin for the moisture sensor.
+const static double WATER_THREASHOLD   = 0.1;    //Threashold which the system notiifes to water.
+const static int DEBUG_SERIAL_INTERVAL = 500;    //intervals in miliseconds which the chip sends info to Serial.
+const static int ANALOG_RESOLUTION     = 11;
 
-
-void sensor_setup(int analogRes);
-void blynk_setup(char auth[], char ssid[], char pass[]);
-double moisture_percentage();
 
 //Global vars needed to get info around.
-Timer timer;
+static Timer* timer = new Timer();
+static MoistureSensor* moistureSensor = new MoistureSensor (MOISTURE_SENSOR_PIN, ANALOG_RESOLUTION);
 
 void setup() {
   Serial.begin(9600);
   //while (!Serial);
 
-  int analogRes = 11;
-
-  sensor_setup(analogRes);
   Serial.println("Sensor setup complete.");
 
   char auth[] = "a4a0cb84512644459ff1c00440d69412";
@@ -37,21 +32,21 @@ void setup() {
   char pass[] = "";
 
   Serial.println("Starting Blynk. . .");
-  blynk_setup(auth, ssid, pass);
+  Blynk.begin(auth, ssid, pass);
   Serial.println("Blynk started.");
 
 }
 
 void loop() {
   Blynk.run();
-  
-  double reading = moisture_percentage();
+
+  double reading = moistureSensor->read();
 
   //Serial.println(timer.get_delta_time());
   //See timer.cpp for implementation of get_delta_time and refresh_recorded_time.
-  if (timer.get_delta_time() >= DEBUG_SERIAL_INTERVAL){
+  if (timer->get_delta_time() >= DEBUG_SERIAL_INTERVAL){
     Serial.println (reading);
-    timer.refresh_recorded_time();
+    timer->refresh_recorded_time();
   }
 
   if (reading < WATER_THREASHOLD){
