@@ -14,7 +14,7 @@
 
 const static int MOISTURE_SENSOR_PIN   = 35;     //Pin for the moisture sensor.
 const static double WATER_THREASHOLD   = 0.1;    //Threashold which the system notiifes to water.
-const static int DEBUG_SERIAL_INTERVAL = 500;    //intervals in miliseconds which the chip sends info to Serial.
+const static int DEBUG_SERIAL_INTERVAL = 3000;   //intervals in miliseconds which the chip sends info to Serial.
 const static int ANALOG_RESOLUTION     = 11;
 const static int NOTIFICATION_INTERVAL = 3600000;//intervals in miliseconds for phone push notifications.
 
@@ -24,6 +24,7 @@ static Timer* debugTimer = new Timer();           //Used to time debug messages 
 static Timer* notificationTimer = new Timer();    //Used to buffer between dropping below threashold humidity and resetting the notification flag.
 static MoistureSensor* moistureSensor = new MoistureSensor (MOISTURE_SENSOR_PIN, ANALOG_RESOLUTION);
 static Notification* notification = new Notification("Water your mint!");
+static WidgetTerminal terminal(V0);
 
 void setup() {
   Serial.begin(9600);
@@ -38,7 +39,7 @@ void setup() {
   Serial.println("Starting Blynk. . .");
   Blynk.begin(auth, ssid, pass);
   Serial.println("Blynk started.");
-  
+
   Blynk.notify("Smart Mint Online.");
 }
 
@@ -52,6 +53,7 @@ void loop() {
   if (debugTimer->get_delta_time() >= DEBUG_SERIAL_INTERVAL){
     Serial.println (reading);
     debugTimer->refresh_recorded_time();
+    Blynk.virtualWrite(V1, reading * 100);
   }
   //1. When water level is low, send notification, set LED on.
   //2. After the notification is sent, do not send again until the plant is watered,
@@ -61,14 +63,16 @@ void loop() {
   int notificationDeltaT = notificationTimer->get_delta_time();
   if (reading < WATER_THREASHOLD && !notification->flag
       && notificationDeltaT > NOTIFICATION_INTERVAL){
-
-    digitalWrite (LED_BUILTIN, 1);
     Blynk.notify(notification->message.c_str());
     notification->flag = 1;
     notificationTimer->refresh_recorded_time();
   }
 
-  if (notification->flag && reading > WATER_THREASHOLD){
+  if (reading > WATER_THREASHOLD){
     digitalWrite (LED_BUILTIN, 0);
+  }
+
+  if (reading < WATER_THREASHOLD){
+    digitalWrite (LED_BUILTIN, 1);
   }
 }
