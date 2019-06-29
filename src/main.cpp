@@ -8,8 +8,9 @@
 #define MOISTURE_MIN 2047
 #define MOISTURE_MAX 1800
 
-#define MOISTURE_SENSOR 35
-#define WATER_THREASHOLD 0.6
+#define MOISTURE_SENSOR 35            //Pin for the moisture sensor. 
+#define WATER_THREASHOLD 0.6          //Threashold which the system notiifes to water.
+#define DEBUG_SERIAL_INTERVAL 500     //intervals in miliseconds which the chip sends info to Serial.
 
 void sensor_setup(int analogRes);
 void blynk_setup(char auth[], char ssid[], char pass[]);
@@ -35,6 +36,8 @@ void setup() {
 
 void loop() {
   Blynk.run();
+
+  millis();
 
   double reading = moisture_percentage();
 
